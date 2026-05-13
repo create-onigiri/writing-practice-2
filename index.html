@@ -77,6 +77,38 @@ const DIFFICULTY_LABELS = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ---------------------------------------------------------
+// GitHub/Vercel公開用の環境変数設定
+// ---------------------------------------------------------
+// プレビュー環境やES2015ターゲットでのビルド警告を回避するため、
+// import.metaを直接評価しない安全なゲッター関数を使用します。
+const getApiKey = () => {
+  // Vite 環境変数
+  try {
+    const meta = Object.getOwnPropertyDescriptor(import.meta, 'env') ? import.meta.env : null;
+    if (meta && meta.VITE_GEMINI_API_KEY) {
+      return meta.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {
+    // import.meta is not available
+  }
+
+  // Node.js (CRA等) 環境変数
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY) {
+      return process.env.REACT_APP_GEMINI_API_KEY;
+    }
+  } catch (e) {
+    // process is not available
+  }
+  
+  return ""; 
+};
+
+// 安定版のモデルを指定
+const MODEL_NAME = "gemini-2.0-flash"; 
+
+
 export default function App() {
   // 学習設定のステート
   const [mode, setMode] = useState('translation'); // 'translation' | 'essay'
@@ -131,11 +163,15 @@ export default function App() {
     setSelectedPromptText('');
     setError('');
     
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      console.warn("API Key is not set in environment variables. Features requiring the API will fail.");
+    }
+
     const currentLevelObj = LEVELS.find(l => l.id === level);
     const currentGrammarObj = GRAMMAR_TOPICS[level].find(g => g.id === targetGrammar);
     
-    const apiKey = ""; // 実行環境から自動的に提供されます
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
     const systemInstruction = `
 あなたは英語学習アプリのお題作成AIです。
@@ -201,8 +237,6 @@ export default function App() {
           const cleanedText = textResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
           const parsedResult = JSON.parse(cleanedText);
           
-          // APIから返ってきた文字列の配列を、難易度情報を付与したオブジェクトの配列に変換する
-          // APIにはEasy, Normal, Hardの順で出力するように指示している
           const mappedPrompts = parsedResult.prompts.map((text, index) => {
             const diffId = index === 0 ? 'easy' : index === 1 ? 'normal' : 'hard';
             return { text, difficulty: diffId };
@@ -243,8 +277,9 @@ export default function App() {
 
     const currentLevelObj = LEVELS.find(l => l.id === level);
     const currentGrammarObj = GRAMMAR_TOPICS[level].find(g => g.id === targetGrammar);
-    const apiKey = ""; // 実行環境から自動的に提供されます
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    
+    const apiKey = getApiKey();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
     const systemInstruction = `
 あなたはプロの英語ネイティブ教師です。
@@ -381,7 +416,7 @@ ${userText}
               <select 
                 value={level}
                 onChange={handleLevelChange}
-                className="bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 cursor-pointer w-full p-0"
+                className="bg-transparent border-none text-sm font-medium text-slate-700 focus:ring-0 cursor-pointer w-full p-0 outline-none"
               >
                 {LEVELS.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
@@ -395,7 +430,7 @@ ${userText}
               <select 
                 value={targetGrammar}
                 onChange={(e) => setTargetGrammar(e.target.value)}
-                className={`bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer w-full p-0 ${targetGrammar !== 'none' ? 'text-indigo-700' : 'text-slate-700'}`}
+                className={`bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer w-full p-0 outline-none ${targetGrammar !== 'none' ? 'text-indigo-700' : 'text-slate-700'}`}
               >
                 {GRAMMAR_TOPICS[level].map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
