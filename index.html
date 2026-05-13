@@ -80,65 +80,50 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ---------------------------------------------------------
 // GitHub/Vercel公開用の環境変数設定
 // ---------------------------------------------------------
-// プレビュー環境やES2015ターゲットでのビルド警告を回避するため、
-// import.metaを直接評価しない安全なゲッター関数を使用します。
 const getApiKey = () => {
-  // Vite 環境変数
   try {
     const meta = Object.getOwnPropertyDescriptor(import.meta, 'env') ? import.meta.env : null;
     if (meta && meta.VITE_GEMINI_API_KEY) {
       return meta.VITE_GEMINI_API_KEY;
     }
-  } catch (e) {
-    // import.meta is not available
-  }
+  } catch (e) {}
 
-  // Node.js (CRA等) 環境変数
   try {
     if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY) {
       return process.env.REACT_APP_GEMINI_API_KEY;
     }
-  } catch (e) {
-    // process is not available
-  }
+  } catch (e) {}
   
   return ""; 
 };
 
-// 安定版のモデルを指定
 const MODEL_NAME = "gemini-2.0-flash"; 
 
 
 export default function App() {
-  // 学習設定のステート
-  const [mode, setMode] = useState('translation'); // 'translation' | 'essay'
+  const [mode, setMode] = useState('translation');
   const [level, setLevel] = useState(LEVELS[0].id);
   const [targetGrammar, setTargetGrammar] = useState('none');
   
-  // お題関連のステート (promptsはオブジェクトの配列になる: { text: string, difficulty: 'easy'|'normal'|'hard' })
   const [prompts, setPrompts] = useState([]);
   const [selectedPromptText, setSelectedPromptText] = useState('');
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
   
-  // 添削関連のステート
   const [userText, setUserText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // レベルが変更されたら、ターゲット文法を「指定なし」にリセットする
   const handleLevelChange = (e) => {
     setLevel(e.target.value);
     setTargetGrammar('none');
   };
 
-  // 学習設定が変わった時にお題を再生成する
   useEffect(() => {
     generatePrompts();
   }, [mode, level, targetGrammar]);
 
-  // コピー機能
   const handleCopy = () => {
     if (result?.corrected_text) {
       const textArea = document.createElement("textarea");
@@ -156,7 +141,6 @@ export default function App() {
     }
   };
 
-  // お題をGeminiに生成させる関数
   const generatePrompts = async () => {
     setIsGeneratingPrompts(true);
     setPrompts([]);
@@ -165,7 +149,7 @@ export default function App() {
     
     const apiKey = getApiKey();
     if (!apiKey) {
-      console.warn("API Key is not set in environment variables. Features requiring the API will fail.");
+      console.warn("API Key is not set in environment variables.");
     }
 
     const currentLevelObj = LEVELS.find(l => l.id === level);
@@ -186,7 +170,6 @@ export default function App() {
 必ず指定されたJSONスキーマに従って、配列形式で回答してください。
 `;
 
-    // 文法指定がある場合はプロンプトに強く組み込む
     const grammarInstruction = currentGrammarObj.id !== 'none' 
       ? `\n【ターゲット文法】: ${currentGrammarObj.name}\n※必ずこの文法事項（${currentGrammarObj.name}）を使って英訳（または英作文）することが想定されるお題にしてください。` 
       : '';
@@ -264,7 +247,6 @@ export default function App() {
     setIsGeneratingPrompts(false);
   };
 
-  // ユーザーの入力テキストを添削する関数
   const handleAnalyze = async () => {
     if (!userText.trim()) {
       setError('英文を入力してください。');
